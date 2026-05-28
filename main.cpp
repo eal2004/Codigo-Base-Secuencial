@@ -2,6 +2,7 @@
 #include <vector>
 #include <fstream>
 #include <string>
+#include <omp.h>
 
 const int WIDTH = 7680;
 const int HEIGHT = 4320;
@@ -12,6 +13,7 @@ struct Pixel {
 };
 
 void generateMandelbrot(std::vector<Pixel>& image) {
+    #pragma omp parallel for schedule(static)
     for (int y = 0; y < HEIGHT; ++y) {
         for (int x = 0; x < WIDTH; ++x) {
             double pr = 1.5 * (x - WIDTH / 2.0) / (0.5 * WIDTH) - 0.5;
@@ -24,13 +26,13 @@ void generateMandelbrot(std::vector<Pixel>& image) {
                 oldIm = newIm;
                 newRe = oldRe * oldRe - oldIm * oldIm + pr;
                 newIm = 2 * oldRe * oldIm + pi;
-                if ((newRe * newRe + newIm * newIm) > 4) break;
+                if (newRe * newRe + newIm * newIm > 4) break;
             }
 
             int index = y * WIDTH + x;
             image[index].r = i % 256;
-            image[index].g = (i * 2) % 256;
-            image[index].b = (i * 5) % 256;
+            image[index].g = i * 2 % 256;
+            image[index].b = i * 5 % 256;
         }
     }
 }
@@ -45,6 +47,7 @@ void applyGaussianBlur(const std::vector<Pixel>& input, std::vector<Pixel>& outp
     };
     double kernelSum = 273.0;
 
+    #pragma omp parallel for schedule(static)
     for (int y = 2; y < HEIGHT - 2; ++y) {
         for (int x = 2; x < WIDTH - 2; ++x) {
             double sumR = 0, sumG = 0, sumB = 0;
@@ -79,15 +82,21 @@ int main() {
     std::vector<Pixel> image(WIDTH * HEIGHT);
     std::vector<Pixel> blurredImage(WIDTH * HEIGHT);
 
-    std::cout << "Iniciando Tarea A: Generando Mandelbrot 8K..." << std::endl;
+    double startMandelbrot = omp_get_wtime();
+    std::cout << "Iniciando Tarea A: Generando Mandelbrot 8K con OpenMP..." << std::endl;
     generateMandelbrot(image);
+    double endMandelbrot = omp_get_wtime();
+    std::cout << "Tiempo Tarea A: " << endMandelbrot - startMandelbrot << " segundos." << std::endl;
 
-    std::cout << "Iniciando Tarea B: Aplicando convolucion 2D pesada..." << std::endl;
+    double startBlur = omp_get_wtime();
+    std::cout << "Iniciando Tarea B: Aplicando convolucion 2D pesada con OpenMP..." << std::endl;
     applyGaussianBlur(image, blurredImage);
+    double endBlur = omp_get_wtime();
+    std::cout << "Tiempo Tarea B: " << endBlur - startBlur << " segundos." << std::endl;
 
     std::cout << "Guardando resultado final..." << std::endl;
-    savePPM("fractal_procesado.ppm", blurredImage);
+    savePPM("fractal_procesado_paralelo.ppm", blurredImage);
 
-    std::cout << "Ejecucion secuencial finalizada." << std::endl;
+    std::cout << "Ejecucion paralela finalizada." << std::endl;
     return 0;
 }
