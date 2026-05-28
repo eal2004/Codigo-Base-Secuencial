@@ -47,8 +47,9 @@ void applyGaussianBlur(const std::vector<Pixel>& input, std::vector<Pixel>& outp
     };
     double kernelSum = 273.0;
 
-    #pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
     for (int y = 2; y < HEIGHT - 2; ++y) {
+#pragma omp simd
         for (int x = 2; x < WIDTH - 2; ++x) {
             double sumR = 0, sumG = 0, sumB = 0;
 
